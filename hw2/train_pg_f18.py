@@ -452,19 +452,16 @@ class Agent(object):
                 b = b_n[i_t:(i_t + T)]
                 adv_p = np.zeros(T)
                 adv_p[-1] = path['reward'][-1] - b[-1]
-                # deltas = path['reward'][:-1] + self.gamma * b[1:] - b[:-1]
-                # for i in range(T):
-                #     multipliers = (self.gamma * self.gae_lambda) ** np.arange(T - 1 - i)
-                #     adv_p[i] = np.sum(multipliers * deltas[i:])
-                for i in reversed(range(T - 1)):
-                    delta = path['reward'][i] + self.gamma * b[i + 1] - b[i]
-                    adv_p[i] = delta + self.gamma * self.gae_lambda * adv_p[i+1]
+                deltas = path['reward'][:-1] + self.gamma * b[1:] - b[:-1]
+                for i in range(T):
+                    multipliers = (self.gamma * self.gae_lambda) ** np.arange(T - 1 - i)
+                    adv_p[i] = np.sum(multipliers * deltas[i:])
                 if not self.reward_to_go:
                     adv_p = adv_p[0] * np.ones(size=T)
                 adv_n.extend(adv_p)
                 i_t += T
 
-            # adv_n = q_n - b_n
+            adv_n = q_n - b_n
         else:
             adv_n = q_n.copy()
         return adv_n
