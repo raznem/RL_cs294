@@ -80,6 +80,7 @@ class Agent(object):
         self.nn_baseline = estimate_return_args['nn_baseline']
         self.normalize_advantages = estimate_return_args['normalize_advantages']
         self.gae_lambda = estimate_return_args['gae_lambda']
+        self.paths = None
 
     def init_tf_sess(self):
         tf_config = tf.ConfigProto(inter_op_parallelism_threads=1, intra_op_parallelism_threads=1) 
@@ -442,7 +443,25 @@ class Agent(object):
             b_n = self.baseline_prediction.eval(feed_dict={self.sy_ob_no: ob_no}) # YOUR CODE HERE
             b_n = (b_n - tf.reduce_mean(b_n)) / tf.math.reduce_std(b_n)
             b_n = np.mean(q_n) + b_n * np.std(q_n)
-            adv_n = q_n - b_n.eval()
+            b_n = b_n.eval()
+
+            i_t = 0
+            adv_n = []
+            for path in self.paths:
+                T = len(path['reward'])
+                b = b_n[i_t:(i_t + T)]
+                adv_p = np.zeros(T)
+                adv_p[-1] = path['reward'][-1] - b[-1]
+                deltas = path['reward'][:-1] + self.gamma * b[1:] - b[:-1]
+                for i in range(T):
+                    multipliers = (self.gamma * self.gae_lambda) ** np.arange(T - 1 - i)
+                    adv_p[i] = np.sum(multipliers * deltas[i:])
+                if not self.reward_to_go:
+                    adv_p = adv_p[0] * np.ones(size=T)
+                adv_n.extend(adv_p)
+                i_t += T
+
+            adv_n = q_n - b_n
         else:
             adv_n = q_n.copy()
         return adv_n
@@ -627,7 +646,8 @@ def train_PG(
         ob_no = np.concatenate([path["observation"] for path in paths])
         ac_na = np.concatenate([path["action"] for path in paths])
         re_n = [path["reward"] for path in paths]
-
+        if nn_baseline:
+            agent.paths = paths
         q_n, adv_n = agent.estimate_return(ob_no, re_n)
         agent.update_parameters(ob_no, ac_na, q_n, adv_n)
 
