@@ -12,6 +12,8 @@ from dqn_utils import *
 from atari_wrappers import *
 
 
+NUM_STEPS = 16e6
+
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
     with tf.variable_scope(scope, reuse=reuse):
@@ -55,7 +57,7 @@ def atari_learn(env,
     exploration_schedule = PiecewiseSchedule(
         [
             (0, 1.0),
-            (1e6, 0.1),
+            (num_iterations / 5, 0.1),
             (num_iterations / 2, 0.01),
         ], outside_value=0.01
     )
@@ -124,7 +126,7 @@ def main():
     print('random seed = %d' % seed)
     env = get_env(task, seed)
     session = get_session()
-    atari_learn(env, session, num_timesteps=2e8)
+    atari_learn(env, session, num_timesteps=NUM_STEPS)
 
 if __name__ == "__main__":
     main()
