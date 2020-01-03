@@ -309,7 +309,8 @@ class Agent(object):
             #====================================================================================#
             #                           ----------PROBLEM 3----------
             #====================================================================================#
-            ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no: [ob]}) # YOUR CODE HERE
+            ac, logits = self.sess.run([self.sy_sampled_ac, self.policy_parameters], 
+                feed_dict={self.sy_ob_no: [ob]}) # YOUR CODE HERE
             ac = ac[0]
             acs.append(ac)
             ob, rew, done, _ = env.step(ac)
@@ -408,7 +409,7 @@ class Agent(object):
                 t_s = np.arange(len(trajectory_rewards))
                 q_t = sum(self.gamma ** (t_s) * trajectory_rewards)
                 q_n.extend([q_t] * T)
-        return q_n
+        return np.array(q_n)
 
     def compute_advantage(self, ob_no, q_n):
         """
@@ -441,27 +442,32 @@ class Agent(object):
             # #bl2 in Agent.update_parameters.
             # b_n = self.sess.run(self.baseline_prediction, feed_dict={self.sy_ob_no: ob_no})
             b_n = self.baseline_prediction.eval(feed_dict={self.sy_ob_no: ob_no}) # YOUR CODE HERE
-            b_n = (b_n - tf.reduce_mean(b_n)) / tf.math.reduce_std(b_n)
+            b_n = (b_n - tf.reduce_mean(b_n)) / (tf.math.reduce_std(b_n) + 1e-8)
             b_n = np.mean(q_n) + b_n * np.std(q_n)
             b_n = b_n.eval()
 
-            i_t = 0
-            adv_n = []
-            for path in self.paths:
-                T = len(path['reward'])
-                b = b_n[i_t:(i_t + T)]
-                adv_p = np.zeros(T)
-                adv_p[-1] = path['reward'][-1] - b[-1]
-                deltas = path['reward'][:-1] + self.gamma * b[1:] - b[:-1]
-                for i in range(T):
-                    multipliers = (self.gamma * self.gae_lambda) ** np.arange(T - 1 - i)
-                    adv_p[i] = np.sum(multipliers * deltas[i:])
-                if not self.reward_to_go:
-                    adv_p = adv_p[0] * np.ones(size=T)
-                adv_n.extend(adv_p)
-                i_t += T
 
-            adv_n = q_n - b_n
+            if self.gae_lambda == 1:
+                adv_n = q_n - b_n
+            else:
+                i_t = 0
+                adv_n = []
+                for path in self.paths:
+                    T = len(path['reward'])
+                    b = b_n[i_t:(i_t + T)]
+                    adv_p = np.zeros(T)
+                    adv_p[-1] = path['reward'][-1] - b[-1]
+                    deltas = path['reward'][:-1] + self.gamma * b[1:] - b[:-1]
+                    for i in range(T):
+                        multipliers = (self.gamma * self.gae_lambda) ** np.arange(T - 1 - i)
+                        adv_p[i] = np.sum(multipliers * deltas[i:])
+                    if not self.reward_to_go:
+                        adv_p = adv_p[0] * np.ones(size=T)
+                    adv_n.extend(adv_p)
+                    i_t += T
+                adv_n = np.array(adv_n)
+
+            
         else:
             adv_n = q_n.copy()
         return adv_n
@@ -494,7 +500,7 @@ class Agent(object):
         if self.normalize_advantages:
             # On the next line, implement a trick which is known empirically to reduce variance
             # in policy gradient methods: normalize adv_n to have mean zero and std=1.
-            adv_n = (adv_n - np.mean(adv_n)) / np.std(adv_n) # YOUR_CODE_HERE
+            adv_n = (adv_n - np.mean(adv_n)) / np.std(adv_n + 1e-8) # YOUR_CODE_HERE
         return q_n, adv_n
 
     def update_parameters(self, ob_no, ac_na, q_n, adv_n):
