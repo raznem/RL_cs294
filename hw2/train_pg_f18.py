@@ -309,8 +309,7 @@ class Agent(object):
             #====================================================================================#
             #                           ----------PROBLEM 3----------
             #====================================================================================#
-            ac, logits = self.sess.run([self.sy_sampled_ac, self.policy_parameters], 
-                feed_dict={self.sy_ob_no: [ob]}) # YOUR CODE HERE
+            ac = self.sess.run(self.sy_sampled_ac, feed_dict={self.sy_ob_no: [ob]}) # YOUR CODE HERE
             ac = ac[0]
             acs.append(ac)
             ob, rew, done, _ = env.step(ac)

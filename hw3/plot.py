@@ -54,8 +54,8 @@ def plot_data(data, value="AverageReturn"):
 
     sns.set(style="darkgrid", font_scale=1.5)
     sns.tsplot(data=data, time="Iteration", value=value, unit="Unit", condition="Condition")
-    plt.legend(loc='best').draggable()
-    plt.show()
+    plt.legend(loc='best')#.draggable()
+    # plt.show()
 
 
 def get_datasets(fpath, condition=None):
@@ -93,6 +93,7 @@ def main():
     parser.add_argument('logdir', nargs='*')
     parser.add_argument('--legend', nargs='*')
     parser.add_argument('--value', default='AverageReturn', nargs='*')
+    parser.add_argument('--plot_name', type=str, default='plot')
     args = parser.parse_args()
 
     use_legend = False
@@ -100,7 +101,8 @@ def main():
         assert len(args.legend) == len(args.logdir), \
             "Must give a legend title for each set of experiments."
         use_legend = True
-
+        
+    # args.logdir = ['data/ac_10_10_InvertedPendulum-v2_05-01-2020_13-39-24', 'data/ac_10_10_HalfCheetah-v2*']
     data = []
     if use_legend:
         for logdir, legend_title in zip(args.logdir, args.legend):
@@ -108,7 +110,7 @@ def main():
     else:
         for logdir in args.logdir:
             data += get_datasets(logdir)
-
+    
     if isinstance(args.value, list):
         values = args.value
     else:
@@ -116,5 +118,8 @@ def main():
     for value in values:
         plot_data(data, value=value)
 
+    plt.savefig(
+        os.path.join("figures", args.plot_name + '.png')
+    )
 if __name__ == "__main__":
     main()

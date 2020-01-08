@@ -363,16 +363,15 @@ class Agent(object):
         # Note: don't forget to use terminal_n to cut off the V(s') term when computing the target
         # otherwise the values will grow without bound.
         # YOUR CODE HERE
-        updates_number = self.num_grad_steps_per_target_update * self.num_target_updates # number of critic updates
-        for i in range(updates_number):
-            if i % self.num_grad_steps_per_target_update == 0: # recompute target values
-                v_next_ob = self.sess.run(self.critic_prediction, feed_dict={self.sy_ob_no: next_ob_no})
-                target_val = re_n + self.gamma * v_next_ob * (1 - terminal_n)
+        for i in range(self.num_grad_steps_per_target_update):
+            v_next_ob = self.sess.run(self.critic_prediction, feed_dict={self.sy_ob_no: next_ob_no})
+            target_val = re_n + self.gamma * v_next_ob * (1 - terminal_n)
 
-            self.sess.run(self.critic_update_op, feed_dict={
-                self.sy_target_n: target_val,
-                self.sy_ob_no: ob_no
-            })
+            for i in range(self.num_target_updates):
+                self.sess.run(self.critic_update_op, feed_dict={
+                    self.sy_target_n: target_val,
+                    self.sy_ob_no: ob_no
+                })
 
     def update_actor(self, ob_no, ac_na, adv_n):
         """ 
