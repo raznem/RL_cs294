@@ -12,7 +12,10 @@ from dqn_utils import *
 from atari_wrappers import *
 
 
-NUM_STEPS = 16e6
+NUM_STEPS = 8e6
+# REW_FILE = 'PiecewiseSchedule'
+# REW_FILE = 'LinearSchedule'
+REW_FILE = 'ConstantSchedule'
 
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
@@ -54,13 +57,22 @@ def atari_learn(env,
         # which is different from the number of steps in the underlying env
         return get_wrapper_by_name(env, "Monitor").get_total_steps() >= num_timesteps
 
-    exploration_schedule = PiecewiseSchedule(
-        [
-            (0, 1.0),
-            (num_iterations / 5, 0.1),
-            (num_iterations / 2, 0.01),
-        ], outside_value=0.01
-    )
+    if REW_FILE == 'LinearSchedule':
+        exploration_schedule = LinearSchedule(
+            num_iterations,
+            final_p=0.01,
+            initial_p=1.0
+        )
+    elif REW_FILE == 'ConstantSchedule':
+        exploration_schedule= ConstantSchedule(0.05)
+    else:
+        exploration_schedule = PiecewiseSchedule(
+            [
+                (0, 1.0),
+                (num_iterations / 5, 0.1),
+                (num_iterations / 2, 0.01),
+            ], outside_value=0.01
+        )
 
     dqn.learn(
         env=env,
@@ -69,7 +81,7 @@ def atari_learn(env,
         session=session,
         exploration=exploration_schedule,
         stopping_criterion=stopping_criterion,
-        replay_buffer_size=1000000,
+        replay_buffer_size=100000,
         batch_size=32,
         gamma=0.99,
         learning_starts=50000,
@@ -77,7 +89,8 @@ def atari_learn(env,
         frame_history_len=4,
         target_update_freq=10000,
         grad_norm_clipping=10,
-        double_q=True
+        double_q=True,
+        rew_file=REW_FILE
     )
     env.close()
 
